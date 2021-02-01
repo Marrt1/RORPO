@@ -217,12 +217,12 @@ int RORPO_multiscale_usage(Image3D<PixelType> &image,
 
 
 // Parse command line with docopt
+/*
 static const char USAGE[] =
 R"(RORPO_multiscale_usage.
 
     USAGE:
-    RORPO_multiscale_usage --input=ImagePath --output=OutputPath --scaleMin=MinScale --factor=F --nbScales=NBS [--window=min,max] [--core=nbCores] [--dilationSize=Size] [--mask=maskPath] [--verbose] [--normalize] [--uint8] [--series]
-
+    RORPO_multiscale_usage --input=ImagePath --output=OutputPath --scaleMin=MinScale --factor=F --nbScales=NBS [--window=min,max] [--core=nbCores] [--dilationSize=Size] [--mask=maskPath] [--verbose] [--normalize] [--uint8] [--series] [--force-isotropic]
     Options:
          --core=<nbCores>      Number of CPUs used for RPO computation \
          --dilationSize=<Size> Size of the dilation for the noise robustness step \
@@ -236,8 +236,29 @@ R"(RORPO_multiscale_usage.
          --dicom               Specify that <imagePath> is a DICOM image.
          --normalize           Return a double normalized output image
          --uint8               Convert input image into uint8.
+         --force-isotropic     Resize the image in an isotropic format.
         )";
+*/
+static const char USAGE[] =
+R"(RORPO_multiscale_usage.
 
+    USAGE:
+    RORPO_multiscale_usage --input=ImagePath --output=OutpurPath --scaleMin=MinScale --factor=F --nbScales=NBS [--window=min, max] [--core=nbCores] [--dilationSize=Size] [--mask=maskPath] [--verbose] [--normalize] [--uint8] [--series] [--force-isotropic]
+
+    Options:
+        --core=<nbCores>        Number of CPUs used for RPO computation.
+        --dilationSize=<Size>   Size of the dilation for the noise robustness step.
+        --window=min,max        Convert intensity range [min, max] of the input\
+                                image to [0, 255] and convert to uint8 image\
+                                (strongly decrease computation time).
+        --mask=maskPath         Path to a mask for the input image\
+                                (0 for the background; not 0 for the foreground).
+        --verbose               Activation of a verbose mode.
+        --dicom                 Specify that <imagePath> is a DICOM image.
+        --normalize             Return a double normalized output image.
+        --uint8                 Convert input image into uint8
+        --force-isotropic       Resize the image in an isotropic format.
+)";
 
 int main(int argc, char **argv) {
 
@@ -265,6 +286,7 @@ int main(int argc, char **argv) {
     bool verbose = args["--verbose"].asBool();
     bool normalize = args["--normalize"].asBool();
     bool dicom = args.count("--dicom");
+    bool force_isotropic = args["--force-isotropic"].asBool();
 
     if (args["--mask"])
         maskPath = args["--mask"].asString();
@@ -328,7 +350,7 @@ int main(int argc, char **argv) {
     switch (imageMetadata.pixelType){
         case itk::ImageIOBase::UCHAR:
         {
-            Image3D<unsigned char> image = dicom?Read_Itk_Image_Series<unsigned char>(imagePath):Read_Itk_Image<unsigned char>(imagePath);
+            Image3D<unsigned char> image = dicom?Read_Itk_Image_Series<unsigned char>(imagePath, force_isotropic):Read_Itk_Image<unsigned char>(imagePath, force_isotropic);
             error = RORPO_multiscale_usage<unsigned char>(image,
                                                           outputPath,
                                                           scaleList,
@@ -342,7 +364,7 @@ int main(int argc, char **argv) {
         }
         case itk::ImageIOBase::CHAR:
         {
-            Image3D<char> image = dicom?Read_Itk_Image_Series<char>(imagePath):Read_Itk_Image<char>(imagePath);
+            Image3D<char> image = dicom?Read_Itk_Image_Series<char>(imagePath, force_isotropic):Read_Itk_Image<char>(imagePath, force_isotropic);
             error = RORPO_multiscale_usage<char>(image,
                                                  outputPath,
                                                  scaleList,
@@ -356,7 +378,7 @@ int main(int argc, char **argv) {
         }
         case itk::ImageIOBase::USHORT:
         {
-            Image3D<unsigned short> image = dicom?Read_Itk_Image_Series<unsigned short>(imagePath):Read_Itk_Image<unsigned short>(imagePath);
+            Image3D<unsigned short> image = dicom?Read_Itk_Image_Series<unsigned short>(imagePath, force_isotropic):Read_Itk_Image<unsigned short>(imagePath, force_isotropic);
             error = RORPO_multiscale_usage<unsigned short>(image,
                                                            outputPath,
                                                            scaleList,
@@ -370,7 +392,7 @@ int main(int argc, char **argv) {
         }
         case itk::ImageIOBase::SHORT:
         {
-            Image3D<short> image = dicom?Read_Itk_Image_Series<short>(imagePath):Read_Itk_Image<short>(imagePath);
+            Image3D<short> image = dicom?Read_Itk_Image_Series<short>(imagePath, force_isotropic):Read_Itk_Image<short>(imagePath, force_isotropic);
             error = RORPO_multiscale_usage<short>(image,
                                                   outputPath,
                                                   scaleList,
@@ -384,7 +406,7 @@ int main(int argc, char **argv) {
         }
         case itk::ImageIOBase::UINT:
         {
-            Image3D<unsigned int> image = dicom?Read_Itk_Image_Series<unsigned int>(imagePath):Read_Itk_Image<unsigned int>(imagePath);
+            Image3D<unsigned int> image = dicom?Read_Itk_Image_Series<unsigned int>(imagePath, force_isotropic):Read_Itk_Image<unsigned int>(imagePath, force_isotropic);
             error = RORPO_multiscale_usage<unsigned int>(image,
                                                          outputPath,
                                                          scaleList,
@@ -398,7 +420,7 @@ int main(int argc, char **argv) {
         }
         case itk::ImageIOBase::INT:
         {
-            Image3D<int> image = dicom?Read_Itk_Image_Series<int>(imagePath):Read_Itk_Image<int>(imagePath);
+            Image3D<int> image = dicom?Read_Itk_Image_Series<int>(imagePath, force_isotropic):Read_Itk_Image<int>(imagePath, force_isotropic);
             error = RORPO_multiscale_usage<int>(image,
                                                 outputPath,
                                                 scaleList,
@@ -412,7 +434,7 @@ int main(int argc, char **argv) {
         }
         case itk::ImageIOBase::ULONG:
         {
-            Image3D<unsigned long> image = dicom?Read_Itk_Image_Series<unsigned long>(imagePath):Read_Itk_Image<unsigned long>(imagePath);
+            Image3D<unsigned long> image = dicom?Read_Itk_Image_Series<unsigned long>(imagePath, force_isotropic):Read_Itk_Image<unsigned long>(imagePath, force_isotropic);
             error = RORPO_multiscale_usage<unsigned long>(image,
                                                           outputPath,
                                                           scaleList,
@@ -426,7 +448,7 @@ int main(int argc, char **argv) {
         }
         case itk::ImageIOBase::LONG:
         {
-            Image3D<long> image = dicom?Read_Itk_Image_Series<long>(imagePath):Read_Itk_Image<long>(imagePath);
+            Image3D<long> image = dicom?Read_Itk_Image_Series<long>(imagePath, force_isotropic):Read_Itk_Image<long>(imagePath, force_isotropic);
             error = RORPO_multiscale_usage<long>(image,
                                                  outputPath,
                                                  scaleList,
@@ -441,7 +463,7 @@ int main(int argc, char **argv) {
 #ifdef ITK_SUPPORTS_LONGLONG
 	case itk::ImageIOBase::ULONGLONG:
         {
-            Image3D<unsigned long long> image = dicom?Read_Itk_Image_Series<unsigned long long>(imagePath):Read_Itk_Image<unsigned long long>(imagePath);
+            Image3D<unsigned long long> image = dicom?Read_Itk_Image_Series<unsigned long long>(imagePath, force_isotropic):Read_Itk_Image<unsigned long long>(imagePath, force_isotropic);
             error = RORPO_multiscale_usage<unsigned long long>(image,
                                                                outputPath,
                                                                scaleList,
@@ -455,7 +477,7 @@ int main(int argc, char **argv) {
         }
         case itk::ImageIOBase::LONGLONG:
         {
-            Image3D<long long> image = dicom?Read_Itk_Image_Series<long long>(imagePath):Read_Itk_Image<long long>(imagePath);
+            Image3D<long long> image = dicom?Read_Itk_Image_Series<long long>(imagePath, force_isotropic):Read_Itk_Image<long long>(imagePath, force_isotropic);
             error = RORPO_multiscale_usage<long long>(image,
                                                       outputPath,
                                                       scaleList,
@@ -470,7 +492,7 @@ int main(int argc, char **argv) {
 #endif // ITK_SUPPORTS_LONGLONG
         case itk::ImageIOBase::FLOAT:
         {
-            Image3D<float> image = dicom?Read_Itk_Image_Series<float>(imagePath):Read_Itk_Image<float>(imagePath);
+            Image3D<float> image = dicom?Read_Itk_Image_Series<float>(imagePath, force_isotropic):Read_Itk_Image<float>(imagePath, force_isotropic);
             error = RORPO_multiscale_usage<float>(image,
                                                   outputPath,
                                                   scaleList,
@@ -484,7 +506,7 @@ int main(int argc, char **argv) {
         }
         case itk::ImageIOBase::DOUBLE:
         {
-            Image3D<double> image = dicom?Read_Itk_Image_Series<double>(imagePath):Read_Itk_Image<double>(imagePath);
+            Image3D<double> image = dicom?Read_Itk_Image_Series<double>(imagePath, force_isotropic):Read_Itk_Image<double>(imagePath, force_isotropic);
             error = RORPO_multiscale_usage<double>(image,
                                                    outputPath,
                                                    scaleList,

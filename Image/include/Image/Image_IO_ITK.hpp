@@ -41,6 +41,9 @@ odyssee.merveille@gmail.com
 #include <itkGDCMImageIO.h>
 #include <itkGDCMSeriesFileNames.h>
 #include <itkMetaDataDictionary.h>
+#include <itkResampleImageFilter.h>
+#include <itkAffineTransform.h>
+#include <itkNearestNeighborInterpolateImageFunction.h>
 
 #include "Image.hpp"
 #include <typeinfo>
@@ -71,7 +74,49 @@ std::optional<Image3DMetadata> Read_Itk_Metadata(const std::string &image_path) 
 }
 
 template<typename PixelType>
-Image3D<PixelType> Read_Itk_Image(const std::string& image_path)
+typename itk::SmartPointer<itk::Image<PixelType, 3>> Resample_Itk_Image(typename itk::SmartPointer<itk::Image<PixelType, 3>> reader_output)
+{
+    using ITKImageType = itk::Image<PixelType, 3>;
+    typename ITKImageType::Pointer image = reader_output;
+
+    using FilterType = itk::ResampleImageFilter<ITKImageType, ITKImageType>;
+    using TransformType = itk::AffineTransform<double, 3>;
+    //FIXME: maybe an other interpolator could be more efficient
+    using InterpolatorType =
+        itk::NearestNeighborInterpolateImageFunction<ITKImageType, double>;
+
+    typename FilterType::Pointer filter = FilterType::New();
+    TransformType::Pointer transform = TransformType::New();
+    typename InterpolatorType::Pointer interpolator = InterpolatorType::New();
+    typename ITKImageType::SizeType size = image->GetLargestPossibleRegion().GetSize(); // {image.dimX(), image.dimY(), image.dimZ()}; //typename
+    typename ITKImageType::DirectionType direction; //typename
+
+    auto spacing = image->GetSpacing();
+    const float min_spacing = std::fmin(spacing[0], std::fmin(spacing[1], spacing[2]));
+    const double isotropic_spacing[3] = {min_spacing, min_spacing, min_spacing};
+
+    size[0] = size[0] * spacing[0] / min_spacing; 
+    size[1] = size[1] * spacing[1] / min_spacing; 
+    size[2] = size[2] * spacing[2] / min_spacing; 
+
+    filter->SetTransform(transform);
+    filter->SetInterpolator(interpolator);
+    filter->SetDefaultPixelValue(0);
+    filter->SetOutputSpacing(isotropic_spacing);
+
+    direction.SetIdentity();
+    filter->SetOutputDirection(direction);
+
+    filter->SetSize(size);
+    filter->SetInput(image);
+    filter->Update();
+
+    return filter->GetOutput();
+}
+
+
+template<typename PixelType>
+Image3D<PixelType> Read_Itk_Image(const std::string& image_path, bool force_isotropic = false)
 {
 	typedef itk::Image<PixelType, 3> ITKImageType;
 
@@ -81,6 +126,11 @@ Image3D<PixelType> Read_Itk_Image(const std::string& image_path)
 	reader->Update();
 
 	typename ITKImageType::Pointer itkImage = reader->GetOutput();
+
+        if (force_isotropic)
+        {
+            itkImage = Resample_Itk_Image<PixelType>(reader->GetOutput());
+        }
 
 	const typename ITKImageType::SizeType& itkSize = itkImage->GetLargestPossibleRegion().GetSize();
 	auto spacing = itkImage->GetSpacing();
@@ -92,7 +142,7 @@ Image3D<PixelType> Read_Itk_Image(const std::string& image_path)
 }
 
 template<typename PixelType>
-Image3D<PixelType> Read_Itk_Image_Series(const std::string& image_path)
+Image3D<PixelType> Read_Itk_Image_Series(const std::string& image_path, bool force_isotropic = false)
 {
 	typedef itk::Image<PixelType, 3> ITKImageType;
 
@@ -121,7 +171,12 @@ Image3D<PixelType> Read_Itk_Image_Series(const std::string& image_path)
 		return Image3D<PixelType>();
 	}
 
-	const typename ITKImageType::Pointer& itkImage = reader->GetOutput();
+	typename ITKImageType::Pointer itkImage = reader->GetOutput();
+        if (force_isotropic)
+        {
+            itkImage = Resample_Itk_Image<PixelType>(reader->GetOutput());
+        }
+
 	const typename ITKImageType::SizeType& itkSize = itkImage->GetLargestPossibleRegion().GetSize();
 	auto spacing = itkImage->GetSpacing();
 	auto origin = itkImage->GetOrigin();
